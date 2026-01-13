@@ -1,196 +1,162 @@
 ﻿#include "WeaponManagerComponent.h"
 
-#include "BaseWeapon.h"
-#include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/SceneComponent.h"
+#include "Engine/World.h"
 
 UWeaponManagerComponent::UWeaponManagerComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
-	CurrentWeapon = nullptr;
-	CurrentSlotIndex = INDEX_NONE;
-
-	// Дефолт — твой сокет на Mesh персонажа
-	WeaponAttachSocket = TEXT("WeaponSocket");
+	// 4 слота (1..4). Можно расширить позже.
+	WeaponSlots.SetNum(4);
 }
 
-void UWeaponManagerComponent::BeginPlay()
+ACharacter* UWeaponManagerComponent::GetOwnerCharacter() const
 {
-	Super::BeginPlay();
+	return Cast<ACharacter>(GetOwner());
 }
 
-bool UWeaponManagerComponent::AddWeaponToSlot(TSubclassOf<ABaseWeapon> WeaponClass, int32 SlotIndex)
+void UWeaponManagerComponent::DestroyCurrentWeapon()
 {
-	if (!WeaponClass || SlotIndex < 0)
+	if (CurrentWeapon)
 	{
+		CurrentWeapon->Destroy();
+		CurrentWeapon = nullptr;
+	}
+	CurrentSlotIndex = -1;
+}
+
+bool UWeaponManagerComponent::SpawnAndAttachWeapon(TSubclassOf<ABaseWeapon> WeaponClass)
+{
+	if (!WeaponClass)
+		return false;
+
+	ACharacter* OwnerChar = GetOwnerCharacter();
+	if (!OwnerChar)
+		return false;
+
+	UWorld* World = GetWorld();
+	if (!World)
+		return false;
+
+	// убираем старое
+	DestroyCurrentWeapon();
+
+	FActorSpawnParameters Params;
+	Params.Owner = OwnerChar;
+	Params.Instigator = OwnerChar;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ABaseWeapon* NewWeapon = World->SpawnActor<ABaseWeapon>(WeaponClass, FTransform::Identity, Params);
+	if (!NewWeapon)
+		return false;
+
+	USkeletalMeshComponent* CharMesh = OwnerChar->GetMesh();
+	if (!CharMesh)
+	{
+		NewWeapon->Destroy();
 		return false;
 	}
 
-	if (WeaponSlots.Num() <= SlotIndex)
-	{
-		WeaponSlots.SetNum(SlotIndex + 1);
-	}
+	const FName SocketName = NewWeapon->AttachSocketName;
+	NewWeapon->AttachToComponent(CharMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName);
+
+	CurrentWeapon = NewWeapon;
+	return true;
+}
+
+bool UWeaponManagerComponent::EquipWeapon(TSubclassOf<ABaseWeapon> WeaponClass)
+{
+	// Просто достаём, не трогаем слоты
+	return SpawnAndAttachWeapon(WeaponClass);
+}
+
+bool UWeaponManagerComponent::SetWeaponInSlot(int32 SlotIndex, TSubclassOf<ABaseWeapon> WeaponClass)
+{
+	if (SlotIndex < 0 || SlotIndex >= 4)
+		return false;
+
+	// гарантируем размер
+	if (WeaponSlots.Num() < 4)
+		WeaponSlots.SetNum(4);
 
 	WeaponSlots[SlotIndex] = WeaponClass;
 	return true;
 }
 
-ABaseWeapon* UWeaponManagerComponent::EquipSlot(int32 SlotIndex)
-{
-	if (!WeaponSlots.IsValidIndex(SlotIndex) || !WeaponSlots[SlotIndex])
-	{
-		return nullptr;
-	}
-
-	return EquipWeapon(WeaponSlots[SlotIndex], SlotIndex);
-}
-
-void UWeaponManagerComponent::UnequipCurrentWeapon(bool bDestroyWeapon)
-{
-	if (!CurrentWeapon)
-	{
-		return;
-	}
-
-	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-
-	if (bDestroyWeapon)
-	{
-		CurrentWeapon->Destroy();
-	}
-
-	CurrentWeapon = nullptr;
-	CurrentSlotIndex = INDEX_NONE;
-
-	OnWeaponUnequipped.Broadcast();
-}
-
-ABaseWeapon* UWeaponManagerComponent::EquipWeapon(TSubclassOf<ABaseWeapon> WeaponClass, int32 SlotIndex)
+bool UWeaponManagerComponent::EquipWeaponSmart(TSubclassOf<ABaseWeapon> WeaponClass, int32 SlotIndex)
 {
 	if (!WeaponClass)
+		return false;
+
+	// Если слот валидный — записываем в слот и достаём из него
+	if (SlotIndex >= 0 && SlotIndex < 4)
 	{
-		return nullptr;
+		SetWeaponInSlot(SlotIndex, WeaponClass);
+		return EquipSlot(SlotIndex);
 	}
 
-	// Если указан слот — запоминаем класс в слоте
-	if (SlotIndex != INDEX_NONE)
-	{
-		if (!AddWeaponToSlot(WeaponClass, SlotIndex))
-		{
-			return nullptr;
-		}
-	}
-
-	// Снимаем старое
-	UnequipCurrentWeapon(true);
-
-	UWorld* World = GetWorld();
-	AActor* OwnerActor = GetOwner();
-	if (!World || !OwnerActor)
-	{
-		return nullptr;
-	}
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = OwnerActor;
-	SpawnParams.Instigator = OwnerActor->GetInstigator();
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	ABaseWeapon* SpawnedWeapon = World->SpawnActor<ABaseWeapon>(WeaponClass, FTransform::Identity, SpawnParams);
-	if (!SpawnedWeapon)
-	{
-		return nullptr;
-	}
-
-	AttachWeaponToOwner(SpawnedWeapon);
-
-	CurrentWeapon = SpawnedWeapon;
-	CurrentSlotIndex = (SlotIndex != INDEX_NONE) ? SlotIndex : INDEX_NONE;
-
-	OnWeaponEquipped.Broadcast(CurrentWeapon, CurrentSlotIndex);
-	return CurrentWeapon;
+	// Иначе просто достаём оружие
+	return EquipWeapon(WeaponClass);
 }
 
-ABaseWeapon* UWeaponManagerComponent::EquipWeaponById(FName WeaponId, int32 SlotIndex)
+bool UWeaponManagerComponent::EquipSlot(int32 SlotIndex)
 {
-	if (WeaponId == NAME_None)
+	if (SlotIndex < 0 || SlotIndex >= 4)
+		return false;
+
+	if (WeaponSlots.Num() < 4)
+		WeaponSlots.SetNum(4);
+
+	TSubclassOf<ABaseWeapon> WeaponClass = WeaponSlots[SlotIndex];
+	if (!WeaponClass)
 	{
-		return nullptr;
+		// слот пустой
+		return false;
 	}
 
-	if (const TSubclassOf<ABaseWeapon>* Found = WeaponsById.Find(WeaponId))
+	const bool bOk = SpawnAndAttachWeapon(WeaponClass);
+	if (bOk)
 	{
-		if (*Found)
-		{
-			return EquipWeapon(*Found, SlotIndex);
-		}
+		CurrentSlotIndex = SlotIndex;
 	}
-
-	return nullptr;
+	return bOk;
 }
 
-ABaseWeapon* UWeaponManagerComponent::EquipWeaponSmart(int32 SlotIndex, FName WeaponId, TSubclassOf<ABaseWeapon> WeaponClass)
+void UWeaponManagerComponent::UnequipCurrentWeapon()
 {
-	if (WeaponClass)
-	{
-		return EquipWeapon(WeaponClass, SlotIndex);
-	}
-
-	if (WeaponId != NAME_None)
-	{
-		return EquipWeaponById(WeaponId, SlotIndex);
-	}
-
-	return nullptr;
+	DestroyCurrentWeapon();
 }
 
-USceneComponent* UWeaponManagerComponent::ResolveAttachParent() const
+bool UWeaponManagerComponent::TryAutoAssignWeapon(TSubclassOf<ABaseWeapon> WeaponClass)
 {
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor)
+	if (!WeaponClass)
+		return false;
+
+	const ABaseWeapon* WeaponCDO = GetDefault<ABaseWeapon>(WeaponClass);
+	if (!WeaponCDO)
+		return false;
+
+	int32 TargetIndex = -1;
+	switch (WeaponCDO->WeaponSlotType)
 	{
-		return nullptr;
+	case ERetroWeaponSlot::Pistol:  TargetIndex = 0; break;
+	case ERetroWeaponSlot::Rifle:   TargetIndex = 1; break;
+	case ERetroWeaponSlot::Melee:   TargetIndex = 2; break;
+	case ERetroWeaponSlot::Grenade: TargetIndex = 3; break;
+	default: return false;
 	}
 
-	// ✅ САМОЕ ВАЖНОЕ: у Character сокеты на Mesh, а не на Capsule
-	if (ACharacter* Char = Cast<ACharacter>(OwnerActor))
+	if (WeaponSlots.Num() < 4)
+		WeaponSlots.SetNum(4);
+
+	// Записываем только если пусто
+	if (!WeaponSlots[TargetIndex])
 	{
-		if (USkeletalMeshComponent* Mesh = Char->GetMesh())
-		{
-			return Mesh;
-		}
+		WeaponSlots[TargetIndex] = WeaponClass;
+		return true;
 	}
 
-	// запасной вариант — любой SkeletalMeshComponent
-	if (USkeletalMeshComponent* AnyMesh = OwnerActor->FindComponentByClass<USkeletalMeshComponent>())
-	{
-		return AnyMesh;
-	}
-
-	return OwnerActor->GetRootComponent();
-}
-
-void UWeaponManagerComponent::AttachWeaponToOwner(ABaseWeapon* Weapon) const
-{
-	if (!Weapon)
-	{
-		return;
-	}
-
-	USceneComponent* AttachParent = ResolveAttachParent();
-	if (!AttachParent)
-	{
-		return;
-	}
-
-	const FName SocketToUse = (WeaponAttachSocket != NAME_None) ? WeaponAttachSocket : Weapon->AttachSocketName;
-
-	Weapon->AttachToComponent(
-		AttachParent,
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-		SocketToUse
-	);
+	return false;
 }

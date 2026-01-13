@@ -2,11 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "UseAction.h"
+#include "BaseWeapon.h"
 #include "AUseAction_EquipWeapon.generated.h"
 
-class ABaseWeapon;
+class UWeaponManagerComponent;
 
-UCLASS(Abstract, Blueprintable)
+UCLASS(Blueprintable)
 class RETROGAME_API AUseAction_EquipWeapon : public AUseAction
 {
 	GENERATED_BODY()
@@ -14,15 +15,16 @@ class RETROGAME_API AUseAction_EquipWeapon : public AUseAction
 public:
 	AUseAction_EquipWeapon();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equip")
-	FName WeaponIdToEquip;
+	// Какой класс оружия экипать
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EquipWeapon")
+	TSubclassOf<ABaseWeapon> WeaponClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equip")
-	TSubclassOf<ABaseWeapon> WeaponClassToEquip;
+	// В какой слот записать (0..3). -1 => не записывать
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EquipWeapon")
+	int32 PreferredSlot = -1;
 
-	// -1 = не использовать слот
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equip")
-	int32 PreferredSlot;
+	virtual void OnUse_Implementation(ACharacter* User) override;
 
-	virtual bool RunAction_Implementation(AActor* InstigatorActor) override;
+protected:
+	UWeaponManagerComponent* FindWeaponManager(ACharacter* User) const;
 };

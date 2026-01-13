@@ -1,46 +1,24 @@
 #include "AUseAction_EquipWeapon.h"
 
 #include "WeaponManagerComponent.h"
-#include "BaseWeapon.h"
-#include "GameFramework/Controller.h"
+#include "GameFramework/Character.h"
 
 AUseAction_EquipWeapon::AUseAction_EquipWeapon()
 {
-	WeaponIdToEquip = NAME_None;
-	WeaponClassToEquip = nullptr;
-	PreferredSlot = INDEX_NONE;
-
-	SetActorHiddenInGame(true);
-	SetCanBeDamaged(false);
+	PrimaryActorTick.bCanEverTick = false;
 }
 
-bool AUseAction_EquipWeapon::RunAction_Implementation(AActor* InstigatorActor)
+UWeaponManagerComponent* AUseAction_EquipWeapon::FindWeaponManager(ACharacter* User) const
 {
-	AActor* ContextActor = InstigatorActor;
+	if (!User) return nullptr;
+	return User->FindComponentByClass<UWeaponManagerComponent>();
+}
 
-	// »ногда инвентарь передаЄт Controller вместо Pawn
-	if (AController* Controller = Cast<AController>(ContextActor))
-	{
-		ContextActor = Controller->GetPawn();
-	}
+void AUseAction_EquipWeapon::OnUse_Implementation(ACharacter* User)
+{
+	UWeaponManagerComponent* WM = FindWeaponManager(User);
+	if (!WM) return;
 
-	// на вс€кий случай Ч owner UseAction
-	if (!ContextActor)
-	{
-		ContextActor = GetOwner();
-	}
-
-	if (!ContextActor)
-	{
-		return false;
-	}
-
-	UWeaponManagerComponent* WeaponManager = ContextActor->FindComponentByClass<UWeaponManagerComponent>();
-	if (!WeaponManager)
-	{
-		return false;
-	}
-
-	ABaseWeapon* Equipped = WeaponManager->EquipWeaponSmart(PreferredSlot, WeaponIdToEquip, WeaponClassToEquip);
-	return (Equipped != nullptr);
+	// ¬ј∆Ќќ: именно EquipWeaponSmart (чтобы и в слот записать, если нужно)
+	WM->EquipWeaponSmart(WeaponClass, PreferredSlot);
 }

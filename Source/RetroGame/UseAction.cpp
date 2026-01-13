@@ -3,11 +3,9 @@
 AUseAction::AUseAction()
 {
 	PrimaryActorTick.bCanEverTick = false;
-	SetActorHiddenInGame(true);
-	SetCanBeDamaged(false);
 }
 
-bool AUseAction::RunAction_Implementation(AActor* InstigatorActor)
+void AUseAction::OnUse_Implementation(ACharacter* User)
 {
-	return false;
+	// База ничего не делает
 }

@@ -4,7 +4,9 @@
 #include "GameFramework/Actor.h"
 #include "UseAction.generated.h"
 
-UCLASS(Abstract, Blueprintable)
+class ACharacter;
+
+UCLASS(Blueprintable)
 class RETROGAME_API AUseAction : public AActor
 {
 	GENERATED_BODY()
@@ -12,8 +14,8 @@ class RETROGAME_API AUseAction : public AActor
 public:
 	AUseAction();
 
-	// BlueprintNativeEvent нужен, чтобы C++ _Implementation гарантированно работал
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UseAction")
-	bool RunAction(AActor* InstigatorActor);
-	virtual bool RunAction_Implementation(AActor* InstigatorActor);
+	// Вызывается, когда игрок “использует” предмет/действие
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "UseAction")
+	void OnUse(ACharacter* User);
+	virtual void OnUse_Implementation(ACharacter* User);
 };

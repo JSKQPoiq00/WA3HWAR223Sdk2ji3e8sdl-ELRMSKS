@@ -1,18 +1,13 @@
 #include "BaseWeapon.h"
-#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 
 ABaseWeapon::ABaseWeapon()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-	RootComponent = WeaponMesh;
+	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
+	SetRootComponent(Mesh);
 
-	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	WeaponMesh->SetSimulatePhysics(false);
-
-	WeaponId = NAME_None;
-
-	// ВАЖНО: твой сокет на скелете персонажа
-	AttachSocketName = TEXT("WeaponSocket");
+	// чтобы не мешал коллизией по умолчанию
+	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
