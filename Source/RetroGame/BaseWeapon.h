@@ -4,9 +4,17 @@
 #include "GameFramework/Actor.h"
 #include "BaseWeapon.generated.h"
 
-class UStaticMeshComponent;
+UENUM(BlueprintType)
+enum class ERetroWeaponSlot : uint8
+{
+	Pistol  UMETA(DisplayName = "Slot 1 - Pistol"),
+	Rifle   UMETA(DisplayName = "Slot 2 - Rifle/Shotgun"),
+	Melee   UMETA(DisplayName = "Slot 3 - Melee"),
+	Grenade UMETA(DisplayName = "Slot 4 - Grenade"),
+	None    UMETA(DisplayName = "Not Assignable")
+};
 
-UCLASS()
+UCLASS(Blueprintable)
 class RETROGAME_API ABaseWeapon : public AActor
 {
 	GENERATED_BODY()
@@ -14,14 +22,15 @@ class RETROGAME_API ABaseWeapon : public AActor
 public:
 	ABaseWeapon();
 
+	// Меш оружия (в BP можно заменить на свой)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<UStaticMeshComponent> WeaponMesh;
+	TObjectPtr<USkeletalMeshComponent> Mesh;
 
-	// ID оружия (если хочешь маппить по имени)
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	FName WeaponId;
+	// К какому “быстрому” слоту относится оружие (для авто-назначения)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Loadout")
+	ERetroWeaponSlot WeaponSlotType = ERetroWeaponSlot::None;
 
-	// Сокет на персонаже, куда цеплять оружие (если WeaponManagerComponent не переопределяет)
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	FName AttachSocketName;
+	// В какой сокет цеплять на персонажа
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Attach")
+	FName AttachSocketName = TEXT("hand_rSocket");
 };

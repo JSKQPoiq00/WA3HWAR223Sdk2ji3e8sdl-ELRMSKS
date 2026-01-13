@@ -1,20 +1,16 @@
 #include "UseAction_Pistol.h"
 
-#include "BaseWeapon.h"
 #include "UObject/ConstructorHelpers.h"
+#include "BaseWeapon.h"
 
 AUseAction_Pistol::AUseAction_Pistol()
 {
-	WeaponIdToEquip = TEXT("Pistol");
-	PreferredSlot = 0;
+	PreferredSlot = 0; // слот 1 (клавиша 1)
 
-	static ConstructorHelpers::FClassFinder<ABaseWeapon> PistolBP(TEXT("/Game/MY_RETRO_GAME/Weapons/BP_Pistol"));
-	if (PistolBP.Succeeded())
+	// ѕуть как в Content Browser: /Game/...
+	static ConstructorHelpers::FClassFinder<ABaseWeapon> PistolBPClass(TEXT("/Game/MY_RETRO_GAME/Weapons/BP_Pistol"));
+	if (PistolBPClass.Succeeded())
 	{
-		WeaponClassToEquip = PistolBP.Class;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("AUseAction_Pistol: BP_Pistol not found. Check asset path /Game/MY_RETRO_GAME/Weapons/BP_Pistol"));
+		WeaponClass = PistolBPClass.Class;
 	}
 }
