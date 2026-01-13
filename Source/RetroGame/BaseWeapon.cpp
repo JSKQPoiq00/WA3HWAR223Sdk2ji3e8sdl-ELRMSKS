@@ -8,9 +8,11 @@ ABaseWeapon::ABaseWeapon()
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
 	RootComponent = WeaponMesh;
 
-	WeaponMesh->SetMobility(EComponentMobility::Movable);
-	WeaponMesh->SetCollisionProfileName(TEXT("NoCollision"));
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WeaponMesh->SetSimulatePhysics(false);
 
-	AttachSocketName = "hand_r_socket";
+	WeaponId = NAME_None;
+
+	// ВАЖНО: твой сокет на скелете персонажа
+	AttachSocketName = TEXT("WeaponSocket");
 }

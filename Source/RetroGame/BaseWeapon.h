@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "BaseWeapon.generated.h"
 
+class UStaticMeshComponent;
+
 UCLASS()
 class RETROGAME_API ABaseWeapon : public AActor
 {
@@ -13,9 +15,13 @@ public:
 	ABaseWeapon();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-	UStaticMeshComponent* WeaponMesh;
+	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
-	// Например: "hand_r_socket"
+	// ID оружия (если хочешь маппить по имени)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
+	FName WeaponId;
+
+	// Сокет на персонаже, куда цеплять оружие (если WeaponManagerComponent не переопределяет)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	FName AttachSocketName;
 };
